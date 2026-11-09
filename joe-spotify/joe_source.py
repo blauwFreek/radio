@@ -17,7 +17,7 @@ import json
 import os
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
@@ -26,10 +26,8 @@ TZ = ZoneInfo("Europe/Amsterdam")
 USER_AGENT = "Mozilla/5.0 (joe-spotify-playlist; persoonlijk gebruik)"
 
 PLAYLIST_URL = os.environ.get("JOE_PLAYLIST_URL", "https://joe.nl/playlist")
-DEFAULT_API_URLS = (
-    "https://api.joe.nl/2.0/tracks/plays?limit=500&_station_id=joe_nl,"
-    "https://api.joe.nl/2.4/tracks/plays?limit=500"
-)
+DEFAULT_API_URLS = "https://api.joe.nl/2.0/tracks/plays?_station_id=joe_nl&limit=500"
+MAX_PAGES = 10  # veiligheidsgrens bij terugbladeren
 API_URLS = [
     u.strip()
     for u in os.environ.get("JOE_API_URLS", DEFAULT_API_URLS).split(",")
@@ -183,6 +181,39 @@ def _embedded_json(html: str) -> list:
     return blobs
 
 
+def _fetch_api(template: str, day: date, log: list[str]) -> list[Play]:
+    """Haal plays op en blader via pagination.previous terug tot vóór `day`."""
+    from urllib.parse import urlencode, urljoin
+
+    day_start = datetime.combine(day, time.min, TZ)
+    upto = (day_start + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S %z")
+    url = template.replace("{date}", day.isoformat())
+    if "{date}" not in template and "upto=" not in url:
+        url += ("&" if "?" in url else "?") + urlencode({"upto": upto})
+
+    found: list[Play] = []
+    for page in range(MAX_PAGES):
+        try:
+            r = _http_get(url)
+            if r.status_code != 200:
+                log.append(f"API {url}: HTTP {r.status_code}")
+                break
+            data = r.json()
+        except (requests.RequestException, ValueError) as e:
+            log.append(f"API {url}: fout {e.__class__.__name__}: {e}")
+            break
+        batch: list[Play] = []
+        _walk(data, "api", batch)
+        found += batch
+        log.append(f"API pagina {page + 1}: {len(batch)} plays")
+        oldest = min((p.played_at for p in batch if p.played_at), default=None)
+        prev = (data.get("pagination") or {}).get("previous") if isinstance(data, dict) else None
+        if not batch or not prev or (oldest and oldest < day_start):
+            break
+        url = urljoin(url, prev)
+    return found
+
+
 # ------------------------------------------------------------------ main ---
 
 def fetch_plays(day: date) -> FetchResult:
@@ -190,17 +221,7 @@ def fetch_plays(day: date) -> FetchResult:
     found: list[Play] = []
 
     for template in API_URLS:
-        url = template.replace("{date}", day.isoformat())
-        try:
-            r = _http_get(url)
-            if r.status_code != 200:
-                res.log.append(f"API {url}: HTTP {r.status_code}")
-                continue
-            before = len(found)
-            _walk(r.json(), "api", found)
-            res.log.append(f"API {url}: {len(found) - before} plays gevonden")
-        except (requests.RequestException, ValueError) as e:
-            res.log.append(f"API {url}: fout {e.__class__.__name__}: {e}")
+        found = _fetch_api(template, day, res.log)
         if found:
             break
 

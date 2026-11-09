@@ -30,16 +30,14 @@ docker compose up -d --build
 Met **Eerst bekijken welke nummers** zie je de lijst van tevoren, zonder dat er een afspeellijst wordt gemaakt.
 
 ## Waar komen de nummers vandaan?
-`joe_source.py` probeert de bronnen in deze volgorde:
-1. De JSON-API('s) uit `JOE_API_URLS`.
-2. De ingebedde data in de HTML van `https://joe.nl/playlist`.
-3. Losse Spotify-links op die pagina. Daar staat geen tijd bij, dus dit werkt alleen voor vandaag.
+Uit de JSON-API van JOE:
+`https://api.joe.nl/2.0/tracks/plays?_station_id=joe_nl&limit=500`
 
-Heeft een nummer geen Spotify-link, dan wordt het op artiest en titel gezocht in Spotify.
+Elke aanroep geeft maximaal 500 nummers terug, ongeveer anderhalve dag. Voor de gekozen dag vraagt de app de lijst op tot middernacht, met `upto=`. Waar nodig bladert hij via `pagination.previous` verder terug, zodat ook eerdere dagen werken. Een paar nummers hebben bij JOE geen Spotify-link. Die worden op artiest en titel opgezocht in Spotify.
 
 Controleren wat er gevonden wordt kan direct op de server:
 ```bash
 docker compose exec app python joe_source.py            # vandaag
 docker compose exec app python joe_source.py 2026-11-08 # andere dag
 ```
-Op de resultaatpagina zie je hetzelfde onder **Technische details**. Vindt hij niets, kijk dan in Safari of Chrome bij Ontwikkelaarstools → Netwerk welke JSON-URL joe.nl/playlist laadt. Zet die URL in `.env` als `JOE_API_URLS` en herstart met `docker compose up -d`.
+Op de resultaatpagina zie je hetzelfde onder **Technische details**. Verandert JOE ooit de API, dan kun je een andere URL instellen met `JOE_API_URLS` in `.env`.
