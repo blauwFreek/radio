@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block content %}
+<h1>JOE → Spotify</h1>
+<p class="sub">Log in om verder te gaan.</p>
+<form method="post" class="card">
+  <label for="pw">Wachtwoord</label>
+  <input id="pw" type="password" name="password" autocomplete="current-password" autofocus>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <button type="submit">Inloggen</button>
+</form>
+{% endblock %}

@@ -1,0 +1,22 @@
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      SPOTIFY_REDIRECT_URI: https://${DOMAIN}/callback
+      TOKEN_FILE: /data/spotify_token.json
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+
+  # Caddy regelt automatisch HTTPS (Let's Encrypt). Spotify eist https voor de callback.
+  caddy:
+    image: caddy:2
+    ports: ["80:80", "443:443"]
+    command: caddy reverse-proxy --from ${DOMAIN} --to app:8000
+    volumes:
+      - caddy_data:/data
+    restart: unless-stopped
+
+volumes:
+  caddy_data:

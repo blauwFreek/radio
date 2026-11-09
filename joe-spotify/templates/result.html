@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% block content %}
+<h1>{% if preview %}Voorbeeld{% elif playlist %}Klaar!{% else %}Niet gelukt{% endif %}</h1>
+<p class="sub">{{ day }} · {{ count }} nummer{{ '' if count == 1 else 's' }} met Spotify-link</p>
+
+{% if error %}<div class="card"><p class="error">{{ error }}</p></div>{% endif %}
+
+{% if playlist %}
+<div class="card">
+  <p>Afspeellijst <strong>{{ name }}</strong> is aangemaakt.</p>
+  <a class="btn" href="{{ playlist.external_urls.spotify }}">Open in Spotify</a>
+</div>
+{% endif %}
+
+<div class="card">
+  {% if rows %}
+  <ul class="tracks">
+    {% for r in rows %}
+    <li class="{{ '' if r.id else 'miss' }}"><span>{{ r.label }}</span><span class="s">{{ r.status }}</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Er zijn geen nummers gevonden voor deze dag.</p>
+  {% endif %}
+  <details><summary class="muted">Technische details</summary><pre>{{ log | join('\n') }}</pre></details>
+</div>
+
+<a class="btn secondary" href="{{ url_for('index') }}">Terug</a>
+{% endblock %}

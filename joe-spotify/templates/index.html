@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% block content %}
+<h1>JOE → Spotify</h1>
+<p class="sub">Zet de nummers van een dag in een nieuwe afspeellijst.</p>
+
+{% if not connected %}
+<div class="card">
+  <p>Koppel eerst eenmalig je Spotify-account.</p>
+  <a class="btn" href="{{ url_for('spotify_connect') }}">Spotify koppelen</a>
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('run') }}" class="card" id="f">
+  <label for="name">Naam van de afspeellijst</label>
+  <input id="name" type="text" name="name" value="{{ default_name }}" autocomplete="off">
+
+  <label for="date">Dag</label>
+  <input id="date" type="date" name="date" value="{{ today }}" max="{{ today }}">
+
+  <label class="check"><input type="checkbox" name="dedupe" value="1" checked> Dubbele nummers overslaan</label>
+  <label class="check"><input type="checkbox" name="public" value="1"> Openbare afspeellijst</label>
+
+  <button type="submit" name="action" value="create" {% if not connected %}disabled{% endif %}>Maak afspeellijst</button>
+  <button type="submit" name="action" value="preview" class="secondary">Eerst bekijken welke nummers</button>
+</form>
+
+{% if connected %}
+<form method="post" action="{{ url_for('spotify_disconnect') }}" class="inline">
+  <p class="muted">Spotify is gekoppeld. <button class="secondary" style="display:inline;width:auto;padding:6px 14px;font-size:14px">Ontkoppelen</button></p>
+</form>
+{% endif %}
+
+<script>
+  // Naam meeschuiven met de datum, zolang je de naam niet zelf hebt aangepast.
+  const maanden = ["januari","februari","maart","april","mei","juni","juli","augustus","september","oktober","november","december"];
+  const name = document.getElementById("name"), dateIn = document.getElementById("date");
+  let auto = true; name.addEventListener("input", () => auto = false);
+  dateIn.addEventListener("change", () => {
+    if (!auto || !dateIn.value) return;
+    const [y, m, d] = dateIn.value.split("-").map(Number);
+    name.value = `JOE – ${d} ${maanden[m - 1]} ${y}`;
+  });
+  document.getElementById("f").addEventListener("submit", e => {
+    const b = e.submitter; if (b) { setTimeout(() => { b.disabled = true; b.textContent = "Bezig…"; }, 0); }
+  });
+</script>
+{% endblock %}
